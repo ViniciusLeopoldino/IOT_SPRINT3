@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+<head>
+    <title>Mottu Storage - Painel do Gestor</title>
+    <style>
+        body { font-family: sans-serif; margin: 20px; }
+        h1 { color: #ff6600; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ccc; padding: 10px; text-align: left; vertical-align: middle; }
+        th { background-color: #f2f2f2; }
+        .actions form { display: inline-flex; align-items: center; gap: 5px; margin-right: 5px; }
+        button { padding: 8px 12px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
+        input[type="text"] { padding: 7px; border-radius: 4px; border: 1px solid #ccc; }
+        .start-btn { background-color: #28a745; color: white; border-color: #28a745;}
+        .stop-btn { background-color: #dc3545; color: white; border-color: #dc3545;}
+    </style>
+</head>
+<body>
+    <h1>Painel de Controle do Gestor</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Vaga</th>
+                <th>Status</th>
+                <th>Placa da Moto</th>
+                <th>Simulador</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody id="manager-table-body">
+            </tbody>
+    </table>
+
+    <script>
+        // Função para criar o HTML de uma linha da tabela pela primeira vez
+        function criarLinhaVaga(vaga) {
+            const row = document.createElement('tr');
+            row.id = `vaga-row-${vaga.id_vaga}`; // ID único para a linha
+
+            let simulatorStatusHtml = vaga.simulador_ativo 
+                ? '<span style="color: green;">Ativo</span>'
+                : '<span style="color: red;">Inativo</span>';
+
+            let actionsHtml = criarActionsHtml(vaga);
+
+            row.innerHTML = `
+                <td><b>${vaga.id_vaga}</b></td>
+                <td class="status-cell">${vaga.status}</td>
+                <td class="placa-cell">${vaga.placa_moto || '---'}</td>
+                <td class="simulator-cell">${simulatorStatusHtml}</td>
+                <td class="actions-cell">${actionsHtml}</td>
+            `;
+            return row;
+        }
+
+        // Função para gerar apenas o HTML dos botões de ação
+        function criarActionsHtml(vaga) {
+            let actionsHtml = `
+                <form action="/comando" method="post">
+                    <input type="hidden" name="id_vaga" value="${vaga.id_vaga}">
+                    ${vaga.simulador_ativo 
+                        ? '<input type="hidden" name="action" value="stop"><button class="stop-btn">Parar</button>'
+                        : '<input type="hidden" name="action" value="start"><button class="start-btn">Iniciar</button>'
+                    }
+                </form>
+            `;
+
+            if (vaga.simulador_ativo) {
+                if (vaga.status === 'Vazia') {
+                    actionsHtml += `
+                        <form action="/comando" method="post">
+                            <input type="hidden" name="id_vaga" value="${vaga.id_vaga}">
+                            <input type="hidden" name="action" value="estacionar">
+                            <input type="text" name="placa" placeholder="Placa" required size="8">
+                            <button type="submit">Estacionar</button>
+                        </form>
+                    `;
+                } else if (vaga.status === 'Ocupada') {
+                     actionsHtml += `
+                        <form action="/comando" method="post">
+                            <input type="hidden" name="id_vaga" value="${vaga.id_vaga}">
+                            <input type="hidden" name="action" value="sair">
+                            <button>Liberar</button>
+                        </form>
+                    `;
+                }
+            }
+            return actionsHtml;
+        }
+
+
+        async function fetchAndUpdateManager() {
+            const response = await fetch('/api/status_vagas');
+            const vagas = await response.json();
+            const tbody = document.getElementById('manager-table-body');
+
+            vagas.forEach(vaga => {
+                let row = document.getElementById(`vaga-row-${vaga.id_vaga}`);
+
+                if (!row) {
+                    // Se a linha não existe, cria e adiciona
+                    row = criarLinhaVaga(vaga);
+                    tbody.appendChild(row);
+                } else {
+                    // Se a linha já existe, apenas atualiza o conteúdo das células
+                    row.querySelector('.status-cell').textContent = vaga.status;
+                    row.querySelector('.placa-cell').textContent = vaga.placa_moto || '---';
+                    
+                    const simulatorStatusHtml = vaga.simulador_ativo 
+                        ? '<span style="color: green;">Ativo</span>'
+                        : '<span style="color: red;">Inativo</span>';
+                    row.querySelector('.simulator-cell').innerHTML = simulatorStatusHtml;
+
+                    // Verifica se a estrutura dos botões precisa mudar, para não apagar o input desnecessariamente
+                    const currentActions = row.querySelector('.actions-cell').innerHTML;
+                    const newActions = criarActionsHtml(vaga);
+                    
+                    // Compara uma parte chave do HTML para decidir se atualiza
+                    if (!currentActions.includes(newActions.substring(20, 80))) {
+                         row.querySelector('.actions-cell').innerHTML = newActions;
+                    }
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchAndUpdateManager();
+            setInterval(fetchAndUpdateManager, 5000); // Atualiza a cada 5 segundos
+        });
+    </script>
+</body>
+</html>
