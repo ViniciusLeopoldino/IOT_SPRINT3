@@ -92,8 +92,8 @@ Para rodar o projeto, você precisará de **3 terminais**.
 ### 2. Instalação
 ```bash
 # Clone o repositório
-git clone <URL_DO_SEU_REPOSITORIO>
-cd <NOME_DA_PASTA>
+git clone https://github.com/ViniciusLeopoldino/IOT_SPRINT3.git
+cd IOT_SPRINT3
 
 # Crie e ative um ambiente virtual (recomendado)
 python -m venv venv
